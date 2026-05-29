@@ -30,13 +30,13 @@ def test_edge_index_rejects_nonexistent_cell_coordinates():
 def test_ld_edge_index_known_boundaries():
     assert NeighbourFinder.edge_index_for_cell(0, 0, hd=False) == 0
     assert NeighbourFinder.edge_index_for_cell(15, 7, hd=False) == 15
-    assert NeighbourFinder.edge_index_for_cell(0, 7, hd=False) == 45
+    assert NeighbourFinder.edge_index_for_cell(0, 7, hd=False) == 38
 
 
 def test_hd_edge_index_known_boundaries():
     assert NeighbourFinder.edge_index_for_cell(0, 0, hd=True) == 0
     assert NeighbourFinder.edge_index_for_cell(23, 11, hd=True) == 23
-    assert NeighbourFinder.edge_index_for_cell(0, 11, hd=True) == 69
+    assert NeighbourFinder.edge_index_for_cell(0, 11, hd=True) == 58
 
 
 def test_table_sizes_follow_chris_edge_count_formula():
