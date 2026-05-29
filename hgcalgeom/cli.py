@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import asdict
 from pathlib import Path
 
 from .detid import decode_detid, encode_detid
-from .interface import InMemoryGeometry, default_cell_set
 from .geometry import Point, Wafer
+from .interface import InMemoryGeometry, default_cell_set
 from .layer_map import guess_wafers_from_records, read_records
 from .neighbours import NeighbourFinder
 from .plotting import write_wafers_svg
@@ -20,7 +21,7 @@ def _parse_int(value: str) -> int:
 
 def cmd_decode(args: argparse.Namespace) -> int:
     decoded = decode_detid(_parse_int(args.detid))
-    print(json.dumps(decoded.__dict__, indent=2, sort_keys=True))
+    print(json.dumps(asdict(decoded), indent=2, sort_keys=True))
     return 0
 
 
