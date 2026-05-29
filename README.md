@@ -10,7 +10,7 @@ The `original` branch is treated as a protected archival import of the Xcode/Coc
 - Basic wafer and cell geometry primitives.
 - The nearest-neighbour algorithm from `HXGNeighbourFinder`.
 - An in-memory geometry adapter for tests and early studies.
-- A tolerant numeric flat-file reader.
+- A parser for Chris's older Hex text geometry dump format.
 - A simple SVG exporter for wafer layouts.
 - A command-line interface named `hgcalgeom`.
 
@@ -43,17 +43,35 @@ Find neighbours in a small synthetic geometry:
 hgcalgeom neighbours 0x90000287
 ```
 
-Draw a best-effort SVG from a numeric flat file:
+Draw a best-effort SVG from a generic numeric flat file:
 
 ```bash
-hgcalgeom draw-flatfile data/v17-22042022-cmssw_flatfile.txt layer.svg --wafer-side 1.0
+hgcalgeom draw-flatfile data/demo/geomCMSSW10052021_layer1_excerpt.txt layer_generic.svg --wafer-side 95
+```
+
+Draw from Chris's Hex geometry dump format:
+
+```bash
+hgcalgeom draw-chris-geometry data/demo/geomCMSSW10052021_layer1_excerpt.txt layer1.svg --layer 1
+```
+
+The demo excerpt was copied from `Hex/geomCMSSW10052021_corrected.txt` in the `original` branch. Its data lines have the form:
+
+```text
+layer partial_type sensor_type x_mm y_mm placement wafer_u wafer_v
+```
+
+For example:
+
+```text
+1 0 h120  502.32    0.00 0 3 0
 ```
 
 ## Development notes
 
 This is not a literal GUI port. The Cocoa/AppKit code, XIB files, and Xcode project are intentionally left in the `original` branch. The Python package ports the computational pieces first, with a small API that can later be backed by a stricter parser for the chosen HGCAL flat-file format.
 
-The current flat-file parser is deliberately tolerant: it preserves each raw line and extracts numeric fields. Once the exact production input file is selected, the parser should be specialized and covered by regression tests.
+The current generic flat-file parser is deliberately tolerant: it preserves each raw line and extracts numeric fields. The Chris geometry parser is more specific and should be preferred for files following the older Hex dump format.
 
 ## Tests
 
