@@ -2,13 +2,14 @@
 
 The historical files have evolved over time. The generic reader keeps the
 original line around and extracts numeric fields conservatively. The
-``parse_chris_geometry`` parser handles the older Hex geometry dump format used
-by files such as ``geomCMSSW10052021_corrected.txt``.
+``parse_chris_geometry`` parser handles the silicon wafer layer layout flat-file
+format documented by Chris Seez.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import sqrt
 from pathlib import Path
 import re
 
@@ -16,13 +17,25 @@ from .geometry import Point, Wafer
 
 _NUMBER_RE = re.compile(r"[-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?")
 
-SENSOR_SIDE_MM = {
-    # The dump stores wafer centre coordinates in mm. These side lengths are
-    # approximate display-side lengths, good enough for quick visualisation.
-    "h120": 95.0,
-    "h200": 95.0,
-    "l200": 95.0,
-    "l300": 95.0,
+LAYOUT_HEXAGON_WIDTH_MM = 167.4408
+DEFAULT_WAFER_SIDE_MM = LAYOUT_HEXAGON_WIDTH_MM / sqrt(3.0)
+
+SILICON_LAYER_TYPES = {
+    0: "wafer-centred, sensitive thickness towards vertex",
+    1: "wafer-centred, sensitive thickness towards back of HGCAL",
+    2: "corner-centred, Y-type",
+    3: "corner-centred, lambda-type",
+    4: "wafer-centred, rotated by +30 degrees",
+}
+
+WAFER_TYPE_NAMES = {
+    0: "Full",
+    1: "Top",
+    2: "Bottom",
+    3: "Left",
+    4: "Right",
+    5: "Five",
+    6: "Partial-6",
 }
 
 
@@ -32,6 +45,18 @@ class FlatFileRecord:
     raw: str
     numbers: tuple[float, ...]
     tokens: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class SiliconLayerHeader:
+    layer: int
+    layer_type: int
+    cassette_retractions: tuple[Point, ...]
+    line_number: int
+
+    @property
+    def layer_type_name(self) -> str:
+        return SILICON_LAYER_TYPES.get(self.layer_type, "unknown")
 
 
 def read_records(path: str | Path) -> list[FlatFileRecord]:
@@ -57,9 +82,8 @@ def guess_wafers_from_records(records: list[FlatFileRecord], *, wafer_side: floa
     """Build a best-effort wafer list from numeric flat-file records.
 
     This is intentionally conservative. It assumes the first four numeric
-    columns are approximately wafer u, wafer v, x, y. For production use the
-    parser should be specialized once the exact chosen flat-file version is
-    fixed.
+    columns are approximately wafer u, wafer v, x, y. For production use prefer
+    ``parse_chris_geometry`` for Chris's silicon flat-file format.
     """
 
     wafers: list[Wafer] = []
@@ -83,19 +107,49 @@ def guess_wafers_from_records(records: list[FlatFileRecord], *, wafer_side: floa
     return wafers
 
 
+def parse_silicon_headers(path: str | Path) -> list[SiliconLayerHeader]:
+    """Parse silicon flat-file header lines.
+
+    Header lines contain the layer number, the layer type, and then cassette
+    retraction vectors as x,y pairs. CEE layers have 6 vectors, while CEH layers
+    have 12 vectors.
+    """
+
+    headers: list[SiliconLayerHeader] = []
+    for record in read_records(path):
+        tokens = record.tokens
+        if len(tokens) < 4:
+            continue
+        if len(tokens) >= 3 and tokens[2][:1].lower() in {"h", "l"}:
+            continue
+        try:
+            layer = int(tokens[0])
+            layer_type = int(tokens[1])
+            values = [float(token) for token in tokens[2:]]
+        except ValueError:
+            continue
+        if len(values) % 2 != 0:
+            continue
+        headers.append(
+            SiliconLayerHeader(
+                layer=layer,
+                layer_type=layer_type,
+                cassette_retractions=tuple(Point(values[i], values[i + 1]) for i in range(0, len(values), 2)),
+                line_number=record.line_number,
+            )
+        )
+    return headers
+
+
 def parse_chris_geometry(path: str | Path, *, layer: int | None = None, wafer_side: float | None = None) -> list[Wafer]:
-    """Parse Chris Seez's text geometry dump into wafer objects.
+    """Parse Chris Seez's silicon wafer layer layout flat-file.
 
-    Data lines have the form::
+    Documented data lines have the form::
 
-        layer partial_type sensor_type x_mm y_mm placement wafer_u wafer_v
+        layer wafer_type sensor_type x_mm y_mm placement wafer_u wafer_v cassette
 
-    Example::
-
-        1 0 h120  502.32    0.00 0 3 0
-
-    The first two header lines are skipped automatically because they do not
-    match this token pattern.
+    Older Hex dumps may omit the final cassette column; this parser accepts
+    both variants and stores ``cassette=None`` when the column is absent.
     """
 
     wafers: list[Wafer] = []
@@ -106,22 +160,23 @@ def parse_chris_geometry(path: str | Path, *, layer: int | None = None, wafer_si
         if not tokens[0].lstrip("+-").isdigit() or not tokens[1].lstrip("+-").isdigit():
             continue
         sensor_type = tokens[2].lower()
-        if not sensor_type[0:1] in {"h", "l"}:
+        if sensor_type[0:1] not in {"h", "l"}:
             continue
         try:
             record_layer = int(tokens[0])
-            partial_type = int(tokens[1])
+            wafer_type = int(tokens[1])
             x = float(tokens[3])
             y = float(tokens[4])
             placement = int(tokens[5])
             wafer_u = int(tokens[6])
             wafer_v = int(tokens[7])
+            cassette = int(tokens[8]) if len(tokens) >= 9 else None
         except ValueError:
             continue
         if layer is not None and record_layer != layer:
             continue
 
-        side = wafer_side if wafer_side is not None else SENSOR_SIDE_MM.get(sensor_type, 95.0)
+        side = wafer_side if wafer_side is not None else DEFAULT_WAFER_SIDE_MM
         wafers.append(
             Wafer(
                 u=wafer_u,
@@ -129,15 +184,17 @@ def parse_chris_geometry(path: str | Path, *, layer: int | None = None, wafer_si
                 center=Point(x, y),
                 side=side,
                 is_ld=sensor_type.startswith("l"),
-                is_partial=partial_type != 0,
-                partial_type=partial_type,
+                is_partial=wafer_type != 0,
+                partial_type=wafer_type,
                 placement=placement,
+                cassette=cassette,
                 file_line=record.line_number,
                 metadata={
                     "raw": record.raw,
                     "layer": record_layer,
                     "sensor_type": sensor_type,
-                    "partial_type": partial_type,
+                    "wafer_type": wafer_type,
+                    "wafer_type_name": WAFER_TYPE_NAMES.get(wafer_type, "unknown"),
                 },
             )
         )
