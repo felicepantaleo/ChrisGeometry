@@ -1,0 +1,20 @@
+//
+// Prefix header for all source
+//
+
+#ifdef __OBJC__
+    #import <Cocoa/Cocoa.h>
+#endif
+
+#ifdef DEBUG
+#define VERBOSE
+#define NSLog(...) NSLog(__VA_ARGS__)
+#else
+#define NSLog(...) // Nothing
+#endif
+
+#ifdef VERBOSE
+#define Verbosity(...) NSLog(__VA_ARGS__)
+#else
+#define Verbosity(...) // Nothing
+#endif

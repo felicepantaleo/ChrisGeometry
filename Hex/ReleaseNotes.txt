@@ -1,0 +1,370 @@
+              ====> R E L E A S E   N O T E S <====
+
+Version 15.07 (5)
+-----------------
+Remove mentions of the various versions of tilefile-Nov2023 (due to messing about with retraction values; NB: tile retractions hardcoded in HXGLayerMapFiles makeTileBezierForLayer).
+Correct the display of position (Show coodinates) which was being distorted by the retraction correction used to identify the wafer id or tile ring.
+Draw phi lines added. Minor cosmetic tweaks.
+Revert to Hex as the name of the base directory, and add protection against old versions of directory structure (i.e. not Hex2025).
+
+Version 15.06 (3)
+-----------------
+Clean up minor bugs and ugly features, and deal with further small problems and ugliness introduced by MacOS Tahoe. Revert to setting hardware constant layoutHexagonWidth = 167.4408.
+
+Version 15.06 (2)
+-----------------
+Deal with numerous small problems and ugliness introduced by MacOS Tahoe (26).
+Construction of Zbar model. Show Zbars in Inert materials display.
+
+Version 15.06 (1)
+-----------------
+Minor bug fixes. MainControl loadZfor47 (as obtained from List sensor Z positions, and checked against 20240712 parameter drawing) is single source of z-coordinates for wafer front. Make layer summary text selectable (for copy/paste).
+New generalized png display HXGDisplayPngControl: use it for the Aide-memoire displays, and to display layer dimension diagram (in Longitudinal menu) extracted from https://edms.cern.ch/file/3133743/1/20240712_PARAMETER_DRAWING_VER_2.1.pdf.
+Improve magnification behaviour: higher magnification requirement for showCellLabels, cell label drawing suppressed during (now continuous) magnification, and scrolling or dragging; similar suppression trick for change of layer takes the label drawing out of the main runloop thread.
+
+Version 15.05 (8)
+-----------------
+In the nearest neighbour code: include the line that cleans up the problem of edgeIndex = 37 not being an edge cell in LD partials, together with a inline revised comment (i.e. for Sunanda). Debug coherence and consistency of title, popup menu states, and picture in NewCellWindow/NewCellView.
+
+Version 15.05 (7)
+-----------------
+In Wafer view the show cell details and debug details option (⇧-⌥-click) now identifies redundant cell polygon vertices and suppresses them. Some additional cosmetics. Correct small bug for split cells in Wafer view show cell details, and include choice of placement index (using a stepper) for choice of coordinate syetem used in show cell details. Debug test of StructuredWafer convertPoint:pnt toRotated:irot fromRotated:jrot.
+
+Version 15.05 (2)
+-----------------
+Option to turn off the showing of cells (outline and coloured fill) in "Show Wafer and Cells".
+
+Version 15.05 (1)
+-----------------
+puthviCSV position check added to Legacy and debug menu. Using HXGCellLocator code and a new HXGPruthviCSV class, it reads the csv and compares Pruthvi cell position and Hex cell position.
+
+Version 15.04 (1)
+-----------------
+Nearest neighbour calculation (⌃-⌥-⌘-click), with show edgeIndex options for both main display and show wafer and cells.
+Development tests of the dE/dx weights calculation using Material Budget neutrino gun output file commented out; leave only a single choice, "dE/dx analysis", in the Legacy and debug menu. This choice does input file selection and then the calculation with an extended version of what was used for the Python script.
+
+Version 15.03 (3)
+-----------------
+More work on dE/dx weights calculation. Clean dEdxOnePass method in HXGExamineVolumes calculating weights from Material Budget neutrino gun output file, excluding gaps with minimal assumptions about GEANT layer structure. This code then fed to LLM to get Python script for dE/dx weights calculation.
+Calculation of dEdx weights in HXGStackUp corrected for bug that resulted in wrong value for Layer 27 (weight for 27 was being calculated for CEH material alone and ignoring the material in CE-E after Layer 26 Si).
+
+Version 15.03 (2)
+-----------------
+DetId count with full breakdown option. Calculation of dE/dx weights from VolumesZPosition_Dnnn.txt file output in the Material Budget validation. Plus numerous small cosmetic mods.
+Tidy up Longitudinal stackup printout and remove sensors (Si) from layer-by-layer dE/dx given there (so that they match the calculations of dE/dx weights elsewhere).
+
+Version 15.02 (5)
+-----------------
+Cosmetic tweaks; remove fade option in scrollview. Assign TrLink:TrCell 2:2 to LD1 hardware channels 95,97,100,102 by modifying LD1-hexaboardMap.csv, and set them to show up as white cells in Show Wafer and Cells (Trigger). Tidy up menus, "Cells" renamed "Si wafers".
+
+Version 15.02 (4)
+-----------------
+Rechecking and debugging of cell areas calculations using new Show Wafer and Cells conventions and HXGHardwareConstants. (Results put in https://cms-docdb.cern.ch/cgi-bin/DocDB/ShowDocument?docid=14831).
+
+Version 15.02 (3)
+-----------------
+Trigger option in Show Wafer and Cells - colours trigger cells and labels them with ROC:link:cell obtained from HXGrawDataMapControl (i.e. from EDMS hexaboard spreadsheets).
+Enhancements and additions to show cell details in Show Wafer and Cells.
+
+Version 15.01 (6)
+-----------------
+More minor bug fixes and aesthetic tweaks. Use of keyboard arrows to scroll in scrollview if scrollmag>4.
+
+Version 15.01 (5)
+-----------------
+Elimination of many minor bugs introduced with retraction, particularly related to behaviour of Cell locator.
+
+Version 15.01 (1)
+-----------------
+Option to display active wafer only, together with associated modification of chan #1 markers. Control of wafer outline line width moved to setting inside HXGWafer. Sort out minor problems introduced in Si/tile overlaps check by intoduction of Active wafer option, and move it to Legacy and Debug menu.
+
+Version 15.00 (3)
+-----------------
+Further simplification of MapFiles tiles routines (still all consequences of changes made by the introduction of retraction). Sort out the overlaps check, and move it to Legacy and debug menu.
+
+Version 15.00 (2)
+-----------------
+Include retraction for tiles in MapFiles location routines (tilesInLayer etc containPoint, tileRingForRadius and innerRingRadiusForLayer).
+Use NSScrollViewDidLiveScrollNotification in MainControl to update mouse position due to scroll.
+
+Version 15.00 (1)
+-----------------
+Structured wafer suite added. Used by a new Show Wafer and Cells. Possibility to have full structured wafer with cells displayed in the main layer display ("Show structure" in scrolling mode with magnification > 5). Cell locator available, with display of located point in "Show structure".
+Option to show layer display with retraction of cassettes.
+Methodology of tile display, bezierPaths etc, reimplemented (assuming 60º symmetry for incomplete rings). Necessary to revise iphiTileAt, iphiRetractedTileAt, and tilesContainPoint.
+Hardware constants collected into HXGHardwareConstants, with listing option in Hex menu.
+Menu layout revised - adding Legacy and debug menu to collect together options that fall in that category.
+
+Version 14.01 (1)
+-----------------
+Option in SensorInspector to show rotated values of corners. Improved SensorInspector window positioning.
+Cell layout wafer size _ftof8 = 167.44, changed from 167.441.
+
+Version 14.00 (3)
+-----------------
+Minor format tweaks to detId count, and pdf output of longView.
+Add protection against bad new flat files in LayerMapFiles loadFiles (now with an s).
+WaferInspector upgraded to SensorInspector and does tiles as well as wafers. Add option to view retracted positions, using stored retraction vectors from flatfile in LayerMapFiles. List to Terminal implemented; makePDF implemented.
+Add posibility to show centre in scrollview both as cross-hairs in the view and as the numerical coordinates.
+
+Version 14.00 (1)
+-----------------
+Scrolling with zoom for longitudinal view, new png file and improved calibration.
+Check for Si/tile overlaps in CEH coarse.
+Fix problem with stateAtPoint (due to return 0 at end of HXGLayerMapFiles tilesContainPoint), and revise output codes.
+
+Version 13.01 (4)
+-----------------
+Formatting trivia in longitudinal stackup picture. Performance tweaking for longitudinal view cross-hairs dragging. Cleanup placement index show/noshow logic in show wafer and cells. Change to tilefile-Nov2023-v3.txt as v19 default (only a change of retraction vectors).
+Clean up reinitialization for the RawDataMap text file, and for raw data maps window in HXGrawDataMapView.
+
+Version 13.01 (3)
+-----------------
+Correct bug in PartView (introduced in 12.5 (17)?) due to wrong assignment of first for ldRightBezier in part47Bezier. Length of axes when showaxes set by max wafer radius, and retune setOptimumMagnification values. Add details to longitudinal stackup results output for CEH (cassette dE/dx, X0, and λ).
+
+Version 13.01 (2)
+-----------------
+Cosmetics for StackUp Terminal output. HXGColorPicker: add choice and saving of choice in prefs file for some colours (wafer highlight, and eta zones in Longitudinal view). Bug in HistView fixed (needed to reset binDividers in showWindow).
+
+Version 13.01 (1)
+-----------------
+PDF output for longitudinal view. Coloured zones available for longitudinal view.
+
+Version 13.0 (3)
+-----------------
+Menu item Export pdf... ⌘P made more universal (any window with a makePDF method responds when front), and extension of output options in Terminal window (add suggestedName property). Count DetIds moved to Geometry menu, and output tightened up. Various minor cosmetic improvements.
+
+
+Version 13.0 (1)
+-----------------
+New setup with version choices of: v17, v19, and Other. New base directory for saved data: Hex2025, the name is a global contant in a new HXGConstants.h file, and defined in HXGMainControl.m. Remove "View saved Si files in finder". Filenames associated with the "Other" version radio-button shown as tool-tip.
+Fix bug in file line display - required removing double blanks from the string in the decoding and mapping.
+HTDColorControl, HTDFadeView, HXGPlotControl moved to Archive folder (i.e. they are unused).
+
+
+Version 12.5 (17)
+-----------------
+Don't show (x,y) axes in case where the layer is 30º rotated and the display is not (i.e.  "rotate rotated" is not on).
+Include new LD2 and HD4 mappings from Matt Noy EDMS files. Correct bug which had HD4 picture (in "Show wafer and cells") extended towards the left.
+
+Version 12.5 (16)
+-----------------
+"Gaps study" -> "Coverage plots" showing inner and outer full coverage limits of any layer range (uses HXGCoverageControl to control the range). Fast result for all layers required making a fast routine (LayerMapFiles tilesContainPoint) to determine whether a point was in a tile, rather than using the NSBezierPath containsPoint method (in HexView stateAtPoint).
+Add tile count per layer to "Count detId" in the Debug menu.
+Position showcoords listing with the text rectangle top positioned with respect to top of window frame, so that when extra text is added the box stretches downwards.
+
+Version 12.5 (15)
+-----------------
+DetId counting in Debug menu. Si file line key available in Help menu. Avoid crash when using wafer inspector on (obsolete) threes in v17.
+
+Version 12.5 (14)
+-----------------
+Highlighting of wafers (toggle with ⌘S-click). More cosmetic tweaking.
+
+Version 12.5 (13)
+-----------------
+Minor tweaks to windowBackground colour (curing pdf and rotation problems). Possibility of window background patterns. CE-H spacers added to Inert material display.
+
+Version 12.5 (12)
+-----------------
+Tighten up menu wording and conventions (i.e. "...") and other trivia. Scroll to bottom method for HGCTerminalControl; also scroll to top after clear; accept keyboard changes to text. Odd layer transparency control when showing CEE Cu plates.
+
+Version 12.5 (11)
+-----------------
+Add showGridForPartials option. Absorber display control. Polygons for CEE Cu cooling plates from Karol.
+
+Version 12.5 (10)
+-----------------
+Cosmetic improvements to Show Materials. Cosmetic update (in xib) to NSTextField * summaryText. Reconnect show wafer centre (menu item was disconnected). Cross-check numbers in "List sensor Z positions" and "List absorber front Z" with Karol values, and make cosmetic improvements. Improve stackup text listing: additional totals to cross-check with LongitudinalStackup.numbers, and Karol's PARAMETER_DRAWING.
+
+Version 12.5 (9)
+----------------
+Minor tidy up of lead absorber bezier drawing. Change CE-H baseplates to titanium in stackup.
+List lead absorber polygons option in format requested by Sunanda.
+
+Version 12.5 (8)
+----------------
+Cosmetic tweaks to HGCTerminal, and Show materials.
+Show lead absorbers now in Geometry menu - polygon shapes from Karol imported in PbPolyVertices.csv and digested in HXGPbAbsorbers class.
+
+
+Version 12.5 (7)
+----------------
+Include 200μm wafer spacing in layout - only significant impact is for the debug mode only retracted centres check.
+Tidy up the eta rings, and add ring colour choice.
+
+Version 12.5 (5)
+----------------
+Rewrite and renaming of material properties class (HGCMaterialProperties) to synchronize names and values with info given Sunanda - new class uses PDG 2022 input of X0*density in g/cm2 etc, and output is in cm (requiring multiplication of distances in mm in StackUp by 0.1).
+
+Version 12.5 (4)
+----------------
+Testpoint system reworked to persist the testpoint after layer change and rotateRotated toggled.
+Corrections to stackup (Suzanne Kyle's numbers of 22 Aug 2024), but naming conventions and material properties games not yet synchronized with spreadsheets and info given Sunanda (https://cms-docdb.cern.ch/cgi-bin/DocDB/RetrieveFile?docid=14752&filename=LongitudinalStackup.pdf&version=1).
+Karol's latest parameter drawing at: https://edms.cern.ch/ui/file/3133743/1/20240712_PARAMETER_DRAWING_VER_2.1.pdf
+When "Other" Si flat-files (i.e. > v17) are selected the z of sensor front face is shown rather than legacy value (originally from Philippe?).
+
+Version 12.5 (3)
+----------------
+Further tweaks to stackup (mainly Si module) after small update from Karol.
+
+Version 12.5 (2)
+----------------
+Modify CEE and CEH stackup, to provide a logitudinal model that doesn't clash with any details and matches info in Karol's 20240712 parameter drawing (composites in new model not yet properly dealt with for dEdx, X0, λ, calculations). Also import 20240712 parameter drawing for LongView (mouse calibration at ±2mm level).
+
+Version 12.5 (1)
+----------------
+Make latest layer description files the default startup. Correct the use of the new tile file with HD layers, so that it is only used with the "Other" layout option (i.e. not with v16 or v17).
+Wafer outline in CellView restricted to active area, plus option of showing layout wafer outline. Partial wafers also set to show only active area along the cut line, and dicing lines set to correct nominal thickness.
+New HXGActiveWafer storing on Zoltan wafer points, and making locations available; key diagrams in https://cernbox.cern.ch/s/c2WpJtE5kekgfuA; CellView updated to use ActiveWafer tools.
+Cell area calculations left fairly messy: doesn't use ActiveWafer tools; "test" (area from vertices) results checked graphically and seem to be correct, some disagreement with geometric calculations for some nasty partial wafer cells.
+Pedro style wafer/module summary (MainControl pedroStyleSummary).
+Revise "illustrate partial wafers" to show only those being used.
+
+Version 12.4 (1)
+----------------
+Add key for wafer type colours in the main display. Cell areas calculations. Together with alternate method using coordinates of vertices full checking for whole wafers. Partial wafers calculations without checking: likely to have many minor errors.
+Rework layer file control, and hardware map storage to allow viable startup without the Hex directory.
+
+Version 12.3 (1)
+----------------
+Get "Illustrate inclusion radii" working again by separating setPlacementIndex and setupPlacement in CellView. Improve and clean up nomenclature in cell count vs radius. Add colour names as ToolTip on click cell colours in cell view.
+Generalize TerminalControl: move all text construction back to appropriate locations; add toolbar with colour scheme choice, trash, and print.
+
+Version 12.2 (1)
+----------------
+Clean up popup menu in partial raw data map, also stepper counter halfCount.
+Add split cell arrays to HXGHardwareNumbering, and comment out redundant code related to simplification of the RawDataMap system in 12.1.
+Always show hardware numbering in CellView.
+In InspectorView use standard thickness colours, and include refCode for wafer type (ML-F, etc).
+Menu item "cell position games" only enabled in debug mode
+
+Version 12.1 (1)
+----------------
+Additional colours added to "click cell colors" in Show wafer and cells. Minor problems of layout and divide-by-zero exception in Show wafer and cells, resulting from use of new Xcode version (15.3), fixed.
+HD1 Top (MH-T) added to available partials.
+Simplification of the RawDataMap system by introducing HXGHardwareNumbering with saved hardware numbering to (iu,iv), performed by a menu item in the Debug menu. Thoroughly checked (diff on raw data map text file). Redundant code not yet removed.
+
+Version 12.0 (9)
+----------------
+Bug fixes to LD2 and LD4 decisionRects (in makeHalf and makeSemi). Remove testpoint on new layer.
+
+
+Version 12.0 (8)
+----------------
+Text dump of stackup listing - also terminal window made printable (command in Hex menu, also ⌘P).
+
+Version 12.0 (7)
+----------------
+Add HD3 mapping (MH-L semi-minus left) from https://edms.cern.ch/file/2889486/1/V3-HD-Semi-Minus-Left_TriggerCell_Mapping.xlsx
+Working on illustrate partials window. Output cell hardware number to iu,iv map.
+
+Version 12.0 (6)
+----------------
+Output Raw data map text table using 'reference wafer type code': M{density}-{type} with
+  * density= L,H  for low/high density
+  * type = {0:'F',1:'T',2:'B',3:'L',4:'R',5:'5'}
+Version 12.0 (5)
+----------------
+Show dicing line option in illustrate partials window. Also mark threes with indication of obsolescence.
+(Rewrite of code lost in empty trash...Mainly CSBeziers cross-hairs; also cleanup of clickColors in cellView because of colour palette, because of lost & new colours)
+
+Version 12.0 (4)
+----------------
+Update Longitudinal view with 20231122_HGCAL_PARAMETER_DRAWING_VER_2.0 (https://edms.cern.ch/file/2220031/2/20231122_HGCAL_PARAMETER_DRAWING_VER_2.0.pdf).
+Optional colour key for Si thicknesses in pdfs.
+
+Version 12.0 (2)
+----------------
+Allow for tile file with HD tiles - i.e. tile file has header that gives φ granularity of each layer. Also allow choice of tile file stored in /Users/USERNAME/Library/Hex/TileLayerDescription/.
+Struggle with code that reduced cassette border lines on incomplete partial edges (HexView.lineStartingAt:) - remaining small problem for even layers of CEE corrected with an ad hoc fudge. Calculate retraction vectors in debug menu.
+
+Version 11.12 (14)
+------------------
+Update LD3-hexaboardMap mapping file with EDMS V1.1 (https://edms.cern.ch/document/2966387/1)
+
+Version 11.12 (14)
+------------------
+Click colour cells made much more flexible and powerful - working also with partials, and in hardware orientation. Does not separate split cells - but since they go into the same ROC channel, maybe that is how it should be.
+Also correct the cell identification for partials in "show coordinates".
+
+Version 11.12 (11)
+------------------
+18-21 Sept 2023: Correct LD3-hexaboardMap (chans 172 and 110 with wrong ROC numbers in original EDMS file). Correct LD*Trg array dimension to 424 (in HXGrawDataMapControl.h; solves TrCell/TrLink bug for LD4).
+
+Version 11.12 (10)
+------------------
+13 Sept 2023: Add more thickness details to longitudinal stackup picture to assist comparison with ExplanatoryFigures.numbers (considering reproducing these spreadsheets). Improve labelling of eta rings.
+
+Version 11.12 (9)
+-----------------
+
+Modifications to preferences (choice of cassette boundary colour; 167.441 now unalterable); tweaks to position and size of cassette numbers.
+
+Version 11.12 (8)
+-----------------
+Clean up of code (ordering of methods) in MainControl. Fix a number of inelegant features, including saftey for deletion of SiliconLayerDescription directory, and setup for cassette numbering.
+Tested with startup after deletion of entire Hex directory. Defaults set to my current preferences.
+
+Version 11.12 (5)
+-----------------
+Selection of "other" Si layer description file made persistent.
+"View saved Si files in Finder" added to Hex menu.
+Delete pre47 stuff in PartControl/View; comment out pre47 stuff in Wafer.
+
+
+Version 11.12 (4)
+-----------------
+Fix for Cassette boundary bezier misdrawing for LD3 wafers (in layers 38 and 39).
+Fix problems associated with "cassette view" (i.e. seeing layout of CE-E even layers from the back of the calorimeter)
+Debug rotations of previously unused LD2 and LD4 partials for new file from Pedro
+
+Version 11.11 (1)
+-----------------
+"Cassette view" introduced. Even layers of CE-E can be viewed from the back - i.e. mirrored, as if looking into a cassette under construction. Dragging and double-clicking in scrollview not working when view is mirrored; wafer inspector does not take mirroring into account.
+Also include theCellControl.cleanup in all raw data map menu calls to correct bug in table text file spotted by Pedro.
+
+Version 11.10 (4)
+-----------------
+Add LD1 raw data map.
+
+
+Version 11.10 (3)
+-----------------
+Add LD5 raw data map (required fix of split cell identification in HXGrawDataMapControl:loadPartialsMapView).
+Update line widths in main display, and mention in HexHelp.
+
+
+Version 11.10 (1)
+-----------------
+Correct the filename printed by "Show file line" button in wafer inspector window in the case of 'other' file (HXGLayerMapFiles _siFile = 2).
+
+
+Version 11.10 (0)
+-----------------
+Show tile file lines (and move the file line text to bottom of screen).
+
+
+Version 11.09 (2)
+-----------------
+Disable single cassette viewing for v16.
+
+
+Version 11.09 (1)
+-----------------
+Switch to allow showing of a single cassette.
+Bug in show cassette boundaries (in build 0) fixed.
+
+
+Version 11.08 (0)
+-----------------
+Add access to these release notes.
+Add trace path lengths to raw data map text file.
+
+
+Version 11.07 (2)
+-----------------
+Use NSString routines instead of native C sscanf for almost all
+decoding of text files (e.g. in HXGLayerMapFiles).
+Add trigger information to raw data maps (both the pdfs and the text
+file). 
