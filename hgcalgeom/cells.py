@@ -1,9 +1,8 @@
 """Silicon cell generation for LD and HD wafers.
 
 This module builds regular grid-cell geometry for full wafers and clips those
-cells to approximate partial-wafer polygons. The exact Zoltan/mouse-bite edge
-shapes are still a later refinement, but partial wafers are no longer drawn as
-full pre-dicing hexagons.
+cells to partial-wafer polygons. The partial polygons use the Zoltan dicing-line
+points from Chris Seez's Mac application, transformed to the local wafer frame.
 """
 
 from __future__ import annotations
@@ -176,8 +175,37 @@ def rotate_point(point: Point, angle_rad: float) -> Point:
     return Point(c * point.x - s * point.y, s * point.x + c * point.y)
 
 
-def _interpolate(a: Point, b: Point, t: float) -> Point:
-    return Point((1.0 - t) * a.x + t * b.x, (1.0 - t) * a.y + t * b.y)
+def _from_hardware(point: Point) -> Point:
+    # HXGActiveWafer::fromHardware(), i.e. rotate 150 degrees.
+    return Point(-point.x * 0.5 * sqrt(3.0) - point.y * 0.5, point.x * 0.5 - point.y * 0.5 * sqrt(3.0))
+
+
+def _scale_point(point: Point, scale: float) -> Point:
+    return Point(point.x * scale, point.y * scale)
+
+
+def _dicing_points(*, is_ld: bool, scale: float) -> list[list[Point]]:
+    if is_ld:
+        z_b = Point(0.8985, 82.3869)
+        z_d = Point(47.4375, 77.5032)
+        z_e = Point(49.2345, 76.4657)
+        z_h = Point(90.8385, 0.8985)
+        hardware = [
+            [Point(-z_h.x, z_h.y), Point(-z_h.x, -z_h.y), Point(z_h.x, -z_h.y), Point(z_h.x, z_h.y)],
+            [Point(-z_b.x, -z_b.y), Point(z_b.x, -z_b.y), Point(z_b.x, z_b.y), Point(-z_b.x, z_b.y)],
+            [Point(z_d.x, -z_d.y), Point(z_e.x, -z_e.y), Point(z_e.x, z_e.y), Point(z_d.x, z_d.y)],
+        ]
+    else:
+        z_a = Point(27.2975, 82.3869)
+        z_b = Point(29.0945, 82.3869)
+        z_e = Point(85.2148, 17.1775)
+        z_f = Point(86.2523, 15.3805)
+        hardware = [
+            [Point(-z_e.x, z_e.y), Point(-z_f.x, z_f.y), Point(z_f.x, z_f.y), Point(z_e.x, z_e.y)],
+            [Point(-z_b.x, -z_b.y), Point(-z_a.x, -z_a.y), Point(-z_a.x, z_a.y), Point(-z_b.x, z_b.y)],
+            [Point(z_a.x, -z_a.y), Point(z_b.x, -z_b.y), Point(z_b.x, z_b.y), Point(z_a.x, z_a.y)],
+        ]
+    return [[_scale_point(_from_hardware(point), scale) for point in line] for line in hardware]
 
 
 def _reference_wafer_corners(side: float) -> list[Point]:
@@ -205,13 +233,11 @@ def _transform_local_polygon(points: list[Point], wafer: Wafer) -> list[Point]:
 
 
 def partial_wafer_polygon(wafer: Wafer) -> list[Point]:
-    """Return an approximate drawable polygon for the wafer active partial.
+    """Return a drawable polygon for the wafer active partial.
 
-    Partial shapes are defined in the reference placement and then transformed
-    with the wafer placement index. This is essential: applying type-1/type-2
-    polygons directly in layer coordinates makes all partials point in the same
-    direction, which creates the artificial ring of partial cells visible in the
-    broken plots.
+    The point ordering follows HXGCellView::setUpPartials. The dicing-line
+    points come from HXGActiveWafer and are first converted from hardware to the
+    local drawing frame, then rotated/mirrored by the wafer placement index.
     """
 
     corners = _reference_wafer_corners(wafer.side)
@@ -219,42 +245,31 @@ def partial_wafer_polygon(wafer: Wafer) -> list[Point]:
         return _ensure_ccw(_transform_local_polygon(corners, wafer))
 
     p = wafer.partial_type
+    scale = wafer.side / DEFAULT_WAFER_SIDE_MM
+    dice = _dicing_points(is_ld=wafer.is_ld, scale=scale)
+
     if wafer.is_ld:
         if p == 1:
             polygon = [corners[1], corners[4], corners[5], corners[0]]
         elif p == 2:
             polygon = [corners[1], corners[2], corners[3], corners[4]]
         elif p == 3:
-            cut_a = _interpolate(corners[2], corners[3], 0.55)
-            cut_b = _interpolate(corners[5], corners[0], 0.55)
-            polygon = [cut_b, corners[0], corners[1], corners[2], cut_a]
+            polygon = [dice[1][2], dice[1][1], corners[2], corners[1], corners[0]]
         elif p == 4:
-            cut_a = _interpolate(corners[2], corners[3], 0.45)
-            cut_b = _interpolate(corners[5], corners[0], 0.45)
-            polygon = [cut_a, corners[3], corners[4], corners[5], cut_b]
+            polygon = [dice[1][0], dice[1][3], corners[5], corners[4], corners[3]]
         elif p == 5:
-            cut_a = _interpolate(corners[4], corners[5], 0.45)
-            cut_b = _interpolate(corners[3], corners[4], 0.45)
-            polygon = [corners[0], corners[1], corners[2], corners[3], cut_b, cut_a, corners[5]]
+            polygon = [dice[2][1], dice[2][2], corners[5], corners[0], corners[1], corners[2], corners[3]]
         else:
             polygon = corners
     else:
         if p == 1:
-            cut_a = _interpolate(corners[5], corners[0], 0.35)
-            cut_b = _interpolate(corners[2], corners[3], 0.35)
-            polygon = [cut_a, corners[0], corners[1], corners[2], cut_b]
+            polygon = [dice[0][2], corners[5], corners[0], dice[0][1]]
         elif p == 2:
-            cut_a = _interpolate(corners[5], corners[0], 0.65)
-            cut_b = _interpolate(corners[2], corners[3], 0.65)
-            polygon = [cut_b, corners[3], corners[4], corners[5], cut_a]
+            polygon = [dice[0][3], corners[4], corners[3], corners[2], corners[1], dice[0][0]]
         elif p == 3:
-            cut_a = _interpolate(corners[0], corners[1], 0.45)
-            cut_b = _interpolate(corners[3], corners[4], 0.45)
-            polygon = [corners[0], cut_a, corners[2], corners[3], cut_b, corners[5]]
+            polygon = [dice[1][2], corners[0], corners[1], corners[2], dice[1][1]]
         elif p == 4:
-            cut_a = _interpolate(corners[0], corners[1], 0.55)
-            cut_b = _interpolate(corners[3], corners[4], 0.55)
-            polygon = [cut_a, corners[1], corners[2], corners[3], cut_b]
+            polygon = [dice[2][0], corners[3], corners[4], corners[5], dice[2][3]]
         else:
             polygon = corners
 
