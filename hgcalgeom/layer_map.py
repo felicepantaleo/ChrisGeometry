@@ -1,8 +1,9 @@
-"""Tolerant parsers for geometry flat files.
+"""Parsers for geometry flat files.
 
-The historical files have evolved over time. This parser keeps the original
-line around and extracts numeric fields conservatively so the rest of the port
-can be built incrementally.
+The historical files have evolved over time. The generic reader keeps the
+original line around and extracts numeric fields conservatively. The
+``parse_chris_geometry`` parser handles the older Hex geometry dump format used
+by files such as ``geomCMSSW10052021_corrected.txt``.
 """
 
 from __future__ import annotations
@@ -14,6 +15,15 @@ import re
 from .geometry import Point, Wafer
 
 _NUMBER_RE = re.compile(r"[-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?")
+
+SENSOR_SIDE_MM = {
+    # The dump stores wafer centre coordinates in mm. These side lengths are
+    # approximate display-side lengths, good enough for quick visualisation.
+    "h120": 95.0,
+    "h200": 95.0,
+    "l200": 95.0,
+    "l300": 95.0,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +78,67 @@ def guess_wafers_from_records(records: list[FlatFileRecord], *, wafer_side: floa
                 side=wafer_side,
                 file_line=record.line_number,
                 metadata={"raw": record.raw, "numbers": record.numbers},
+            )
+        )
+    return wafers
+
+
+def parse_chris_geometry(path: str | Path, *, layer: int | None = None, wafer_side: float | None = None) -> list[Wafer]:
+    """Parse Chris Seez's text geometry dump into wafer objects.
+
+    Data lines have the form::
+
+        layer partial_type sensor_type x_mm y_mm placement wafer_u wafer_v
+
+    Example::
+
+        1 0 h120  502.32    0.00 0 3 0
+
+    The first two header lines are skipped automatically because they do not
+    match this token pattern.
+    """
+
+    wafers: list[Wafer] = []
+    for record in read_records(path):
+        tokens = record.tokens
+        if len(tokens) < 8:
+            continue
+        if not tokens[0].lstrip("+-").isdigit() or not tokens[1].lstrip("+-").isdigit():
+            continue
+        sensor_type = tokens[2].lower()
+        if not sensor_type[0:1] in {"h", "l"}:
+            continue
+        try:
+            record_layer = int(tokens[0])
+            partial_type = int(tokens[1])
+            x = float(tokens[3])
+            y = float(tokens[4])
+            placement = int(tokens[5])
+            wafer_u = int(tokens[6])
+            wafer_v = int(tokens[7])
+        except ValueError:
+            continue
+        if layer is not None and record_layer != layer:
+            continue
+
+        side = wafer_side if wafer_side is not None else SENSOR_SIDE_MM.get(sensor_type, 95.0)
+        wafers.append(
+            Wafer(
+                u=wafer_u,
+                v=wafer_v,
+                center=Point(x, y),
+                side=side,
+                is_ld=sensor_type.startswith("l"),
+                is_partial=partial_type != 0,
+                partial_type=partial_type,
+                placement=placement,
+                file_line=record.line_number,
+                metadata={
+                    "raw": record.raw,
+                    "layer": record_layer,
+                    "sensor_type": sensor_type,
+                    "partial_type": partial_type,
+                },
             )
         )
     return wafers
