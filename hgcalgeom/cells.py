@@ -19,6 +19,34 @@ DENSITY_LD = 8
 DENSITY_HD = 12
 
 
+def _rotate_offset(dx: float, dy: float, angle_rad: float) -> tuple[float, float]:
+    c = cos(angle_rad)
+    s = sin(angle_rad)
+    return c * dx - s * dy, s * dx + c * dy
+
+
+def _flat_top_hex_offsets(side: float, angle_rad: float = 0.0) -> list[tuple[float, float]]:
+    """Return flat-top hexagon offsets, optionally rotated.
+
+    The silicon wafer documentation and mapping drawings use the hardware
+    orientation with hexagon flats at the top and bottom. The previous version
+    used point-up hexagons, which made the cells appear rotated by 30 degrees.
+    """
+
+    h = sqrt(0.75) * side
+    offsets = [
+        (side, 0.0),
+        (0.5 * side, h),
+        (-0.5 * side, h),
+        (-side, 0.0),
+        (-0.5 * side, -h),
+        (0.5 * side, -h),
+    ]
+    if angle_rad == 0.0:
+        return offsets
+    return [_rotate_offset(dx, dy, angle_rad) for dx, dy in offsets]
+
+
 @dataclass(frozen=True, slots=True)
 class SiliconCell:
     """Drawable silicon cell polygon in layer-global coordinates."""
@@ -33,18 +61,13 @@ class SiliconCell:
     is_ld: bool
     wafer_type: int
     sensor_type: str | None = None
+    orientation_rad: float = 0.0
 
     def corners(self) -> list[Point]:
-        h = sqrt(0.75) * self.side
-        offsets = [
-            (0.0, -self.side),
-            (h, -0.5 * self.side),
-            (h, 0.5 * self.side),
-            (0.0, self.side),
-            (-h, 0.5 * self.side),
-            (-h, -0.5 * self.side),
+        return [
+            Point(self.center.x + dx, self.center.y + dy)
+            for dx, dy in _flat_top_hex_offsets(self.side, self.orientation_rad)
         ]
-        return [Point(self.center.x + dx, self.center.y + dy) for dx, dy in offsets]
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,16 +78,7 @@ class LocalSiliconCell:
     side: float
 
     def corners(self) -> list[Point]:
-        h = sqrt(0.75) * self.side
-        offsets = [
-            (0.0, -self.side),
-            (h, -0.5 * self.side),
-            (h, 0.5 * self.side),
-            (0.0, self.side),
-            (-h, 0.5 * self.side),
-            (-h, -0.5 * self.side),
-        ]
-        return [Point(self.center.x + dx, self.center.y + dy) for dx, dy in offsets]
+        return [Point(self.center.x + dx, self.center.y + dy) for dx, dy in _flat_top_hex_offsets(self.side)]
 
 
 def density_number(*, is_ld: bool) -> int:
@@ -75,7 +89,7 @@ def regular_cell_side(*, is_ld: bool) -> float:
     """Return the regular cell hexagon side in mm.
 
     The documentation gives layout hexagon width = 167.4408 mm and
-    cellWidth = waferSide / Nc. In the hexagon drawing convention used here,
+    cellWidth = waferSide / Nc. In the flat-top hexagon convention used here,
     cell side = cellWidth / sqrt(3).
     """
 
@@ -88,11 +102,12 @@ def valid_cell_coordinates(*, is_ld: bool) -> set[tuple[int, int]]:
 
 
 def _raw_local_center(iu: int, iv: int, side: float) -> Point:
-    # Use axial coordinates q=iu, r=iv-iu. This reproduces the neighbour
-    # directions used by the nearest-neighbour algorithm.
+    # Use flat-top axial coordinates with q=iu and r=iv-iu. This is the same
+    # topology as the neighbour algorithm, but rotated by 30 degrees with
+    # respect to the previous point-up drawing convention.
     q = iu
     r = iv - iu
-    return Point(sqrt(3.0) * side * (q + 0.5 * r), 1.5 * side * r)
+    return Point(1.5 * side * q, sqrt(3.0) * side * (r + 0.5 * q))
 
 
 def local_cells(*, is_ld: bool) -> list[LocalSiliconCell]:
@@ -128,6 +143,7 @@ def transform_to_wafer(cell: LocalSiliconCell, wafer: Wafer) -> SiliconCell:
         is_ld=wafer.is_ld,
         wafer_type=wafer.partial_type,
         sensor_type=wafer.metadata.get("sensor_type") if isinstance(wafer.metadata.get("sensor_type"), str) else None,
+        orientation_rad=angle,
     )
 
 
