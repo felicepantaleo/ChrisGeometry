@@ -21,7 +21,7 @@ from hgcalgeom.detid import (
         (0, 0, 0, 0, 1, HGCAL_EE),
         (7, 3, 15, 10, 25, HGCAL_EE),
         (-7, -3, 5, 6, 26, HGCAL_HSI),
-        (15, -15, 23, 18, 47, HGCAL_HSI),
+        (15, -15, 23, 18, 31, HGCAL_HSI),
     ],
 )
 def test_encode_decode_roundtrip_parameterized(wafer_u, wafer_v, cell_u, cell_v, layer, detector):
@@ -40,6 +40,11 @@ def test_encode_decode_roundtrip_parameterized(wafer_u, wafer_v, cell_u, cell_v,
     assert decoded.cell_u == cell_u
     assert decoded.cell_v == cell_v
     assert decoded.layer == layer
+
+
+def test_layer_field_is_five_bits():
+    raw = encode_detid(wafer_u=0, wafer_v=0, cell_u=0, cell_v=0, layer=47)
+    assert decode_detid(raw).layer == 15
 
 
 def test_encode_requires_detector_or_layer():
