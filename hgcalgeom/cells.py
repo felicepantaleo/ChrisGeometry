@@ -180,18 +180,43 @@ def _interpolate(a: Point, b: Point, t: float) -> Point:
     return Point((1.0 - t) * a.x + t * b.x, (1.0 - t) * a.y + t * b.y)
 
 
+def _reference_wafer_corners(side: float) -> list[Point]:
+    h = sqrt(0.75) * side
+    return [
+        Point(0.0, -side),
+        Point(h, -0.5 * side),
+        Point(h, 0.5 * side),
+        Point(0.0, side),
+        Point(-h, 0.5 * side),
+        Point(-h, -0.5 * side),
+    ]
+
+
+def _transform_local_polygon(points: list[Point], wafer: Wafer) -> list[Point]:
+    angle = (wafer.placement % 6) * pi / 3.0
+    transformed: list[Point] = []
+    for point in points:
+        p = point
+        if wafer.placement > 5 or wafer.seen_from_back:
+            p = Point(-p.x, p.y)
+        rotated = rotate_point(p, angle)
+        transformed.append(Point(wafer.center.x + rotated.x, wafer.center.y + rotated.y))
+    return transformed
+
+
 def partial_wafer_polygon(wafer: Wafer) -> list[Point]:
     """Return an approximate drawable polygon for the wafer active partial.
 
-    The vertex selections for LD 1 and LD 2 match the coarse partial polygons in
-    the original Mac view. The other partials use convex approximations aligned
-    to the same wafer-corner convention until the exact Zoltan dicing bands are
-    ported.
+    Partial shapes are defined in the reference placement and then transformed
+    with the wafer placement index. This is essential: applying type-1/type-2
+    polygons directly in layer coordinates makes all partials point in the same
+    direction, which creates the artificial ring of partial cells visible in the
+    broken plots.
     """
 
-    corners = wafer.corners()
+    corners = _reference_wafer_corners(wafer.side)
     if wafer.partial_type == 0:
-        return corners
+        return _ensure_ccw(_transform_local_polygon(corners, wafer))
 
     p = wafer.partial_type
     if wafer.is_ld:
@@ -233,12 +258,15 @@ def partial_wafer_polygon(wafer: Wafer) -> list[Point]:
         else:
             polygon = corners
 
-    return _ensure_ccw(polygon)
+    return _ensure_ccw(_transform_local_polygon(polygon, wafer))
 
 
 def transform_to_wafer(cell: LocalSiliconCell, wafer: Wafer) -> SiliconCell:
-    angle = wafer.placement * pi / 3.0
-    rotated = rotate_point(cell.center, angle)
+    angle = (wafer.placement % 6) * pi / 3.0
+    local_center = cell.center
+    if wafer.placement > 5 or wafer.seen_from_back:
+        local_center = Point(-local_center.x, local_center.y)
+    rotated = rotate_point(local_center, angle)
     center = Point(wafer.center.x + rotated.x, wafer.center.y + rotated.y)
     full_cell = SiliconCell(
         layer=wafer.metadata.get("layer") if isinstance(wafer.metadata.get("layer"), int) else None,
