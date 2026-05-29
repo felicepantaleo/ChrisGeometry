@@ -7,21 +7,10 @@ or by an adapter to another geometry source.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
-from .detid import (
-    DETECTOR_MASK,
-    HGCAL_EE,
-    HGCAL_HSI,
-    IU_MASK,
-    IV_MASK,
-    IV_SHIFT,
-    WAFER_MASK,
-    decode_detid,
-    replace_cell,
-    replace_wafer,
-)
+from .detid import DETECTOR_MASK, HGCAL_EE, HGCAL_HSI, decode_detid, replace_cell, replace_wafer
 
 DENSITY_NUMBER_LD = 8
 DENSITY_NUMBER_HD = 12
@@ -49,6 +38,12 @@ class GeometryInterface(Protocol):
 @dataclass(slots=True)
 class NeighbourFinder:
     geometry: GeometryInterface
+    iu_edge_ld: list[int] = field(init=False)
+    iv_edge_ld: list[int] = field(init=False)
+    side_ld: list[int] = field(init=False)
+    iu_edge_hd: list[int] = field(init=False)
+    iv_edge_hd: list[int] = field(init=False)
+    side_hd: list[int] = field(init=False)
 
     def __post_init__(self) -> None:
         self.iu_edge_ld, self.iv_edge_ld, self.side_ld = self._build_tables(DENSITY_NUMBER_LD)
