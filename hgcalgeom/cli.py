@@ -10,7 +10,7 @@ from pathlib import Path
 from .detid import decode_detid, encode_detid
 from .geometry import Point, Wafer
 from .interface import InMemoryGeometry, default_cell_set
-from .layer_map import guess_wafers_from_records, read_records
+from .layer_map import guess_wafers_from_records, parse_chris_geometry, read_records
 from .neighbours import NeighbourFinder
 from .plotting import write_wafers_svg
 
@@ -63,6 +63,15 @@ def cmd_draw(args: argparse.Namespace) -> int:
     records = read_records(args.input)
     wafers = guess_wafers_from_records(records, wafer_side=args.wafer_side)
     write_wafers_svg(wafers, args.output, title=Path(args.input).name)
+    print(f"wrote {len(wafers)} wafers to {args.output}")
+    return 0
+
+
+def cmd_draw_chris(args: argparse.Namespace) -> int:
+    wafers = parse_chris_geometry(args.input, layer=args.layer, wafer_side=args.wafer_side)
+    title = Path(args.input).name if args.layer is None else f"{Path(args.input).name}, layer {args.layer}"
+    write_wafers_svg(wafers, args.output, title=title)
+    print(f"wrote {len(wafers)} wafers to {args.output}")
     return 0
 
 
@@ -94,6 +103,13 @@ def build_parser() -> argparse.ArgumentParser:
     draw.add_argument("output")
     draw.add_argument("--wafer-side", type=float, default=1.0)
     draw.set_defaults(func=cmd_draw)
+
+    draw_chris = sub.add_parser("draw-chris-geometry", help="Draw an SVG from Chris's Hex geometry dump")
+    draw_chris.add_argument("input")
+    draw_chris.add_argument("output")
+    draw_chris.add_argument("--layer", type=int, help="Only draw this layer")
+    draw_chris.add_argument("--wafer-side", type=float, help="Override display wafer side in mm")
+    draw_chris.set_defaults(func=cmd_draw_chris)
 
     return parser
 
