@@ -13,12 +13,78 @@ from .geometry import Point, Wafer
 from .interface import InMemoryGeometry, default_cell_set
 from .layer_map import guess_wafers_from_records, parse_chris_geometry, read_records
 from .neighbours import NeighbourFinder
-from .plotting import write_cells_svg, write_combined_layer_svg, write_tiles_svg, write_wafers_svg
+from .plotting import write_cells_svg, write_combined_layer_pdf, write_combined_layer_svg, write_tiles_svg, write_wafers_svg
 from .tile import tiles_for_layer
 
 
 def _parse_int(value: str) -> int:
     return int(value, 0)
+
+
+def _parse_layer_list(value: str) -> list[int]:
+    layers: list[int] = []
+    for chunk in value.split(","):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        if "-" in chunk:
+            first, last = chunk.split("-", 1)
+            layers.extend(range(int(first), int(last) + 1))
+        else:
+            layers.append(int(chunk))
+    return sorted(dict.fromkeys(layers))
+
+
+def _default_layers() -> list[int]:
+    return list(range(1, 48))
+
+
+def _layer_objects(args: argparse.Namespace, layer: int):
+    wafers = parse_chris_geometry(args.silicon, layer=layer, wafer_side=args.wafer_side) if args.silicon else []
+    cells = cells_for_wafers(wafers) if args.show_cells else []
+    tiles = tiles_for_layer(args.tiles, layer=layer) if args.tiles and args.show_tiles else []
+    return wafers, cells, tiles
+
+
+def _write_layer_outputs(
+    *,
+    output_base: Path,
+    layer: int,
+    wafers,
+    cells,
+    tiles,
+    show_wafers: bool,
+    show_cells: bool,
+    show_tiles: bool,
+    write_svg: bool,
+    write_pdf: bool,
+) -> tuple[Path | None, Path | None]:
+    title = f"HGCAL layer {layer}"
+    svg_path = output_base.with_suffix(".svg") if write_svg else None
+    pdf_path = output_base.with_suffix(".pdf") if write_pdf else None
+    if write_svg:
+        write_combined_layer_svg(
+            svg_path,
+            wafers=wafers,
+            cells=cells,
+            tiles=tiles,
+            title=title,
+            show_wafers=show_wafers,
+            show_cells=show_cells,
+            show_tiles=show_tiles,
+        )
+    if write_pdf:
+        write_combined_layer_pdf(
+            pdf_path,
+            wafers=wafers,
+            cells=cells,
+            tiles=tiles,
+            title=title,
+            show_wafers=show_wafers,
+            show_cells=show_cells,
+            show_tiles=show_tiles,
+        )
+    return svg_path, pdf_path
 
 
 def cmd_decode(args: argparse.Namespace) -> int:
@@ -95,25 +161,69 @@ def cmd_draw_tiles(args: argparse.Namespace) -> int:
 
 
 def cmd_draw_layer(args: argparse.Namespace) -> int:
-    wafers = parse_chris_geometry(args.silicon, layer=args.layer, wafer_side=args.wafer_side) if args.silicon else []
-    cells = cells_for_wafers(wafers) if args.show_cells else []
-    tiles = tiles_for_layer(args.tiles, layer=args.layer) if args.tiles and args.show_tiles else []
-    title = f"HGCAL layer {args.layer}"
-    write_combined_layer_svg(
-        args.output,
+    wafers, cells, tiles = _layer_objects(args, args.layer)
+    output = Path(args.output)
+    suffix = output.suffix.lower()
+    write_svg = suffix != ".pdf"
+    write_pdf = suffix == ".pdf" or args.pdf
+    base = output.with_suffix("") if suffix in {".svg", ".pdf"} else output
+    svg_path, pdf_path = _write_layer_outputs(
+        output_base=base,
+        layer=args.layer,
         wafers=wafers,
         cells=cells,
         tiles=tiles,
-        title=title,
         show_wafers=args.show_wafers,
         show_cells=args.show_cells,
         show_tiles=args.show_tiles,
+        write_svg=write_svg,
+        write_pdf=write_pdf,
     )
+    produced = [str(path) for path in (svg_path, pdf_path) if path is not None]
     print(
         f"wrote layer {args.layer}: {len(wafers)} wafers, {len(cells)} cells, "
-        f"{len(tiles)} tiles to {args.output}"
+        f"{len(tiles)} tiles -> {', '.join(produced)}"
     )
     return 0
+
+
+def cmd_export_all_layers(args: argparse.Namespace) -> int:
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    layers = _parse_layer_list(args.layers) if args.layers else _default_layers()
+    write_svg = args.format in {"svg", "both"}
+    write_pdf = args.format in {"pdf", "both"}
+    written = 0
+    for layer in layers:
+        wafers, cells, tiles = _layer_objects(args, layer)
+        if not wafers and not tiles:
+            print(f"skip layer {layer}: no silicon wafers or tiles")
+            continue
+        base = output_dir / f"layer_{layer:02d}"
+        svg_path, pdf_path = _write_layer_outputs(
+            output_base=base,
+            layer=layer,
+            wafers=wafers,
+            cells=cells,
+            tiles=tiles,
+            show_wafers=args.show_wafers,
+            show_cells=args.show_cells,
+            show_tiles=args.show_tiles,
+            write_svg=write_svg,
+            write_pdf=write_pdf,
+        )
+        produced = [str(path.name) for path in (svg_path, pdf_path) if path is not None]
+        print(f"layer {layer:02d}: {len(wafers)} wafers, {len(cells)} cells, {len(tiles)} tiles -> {', '.join(produced)}")
+        written += len(produced)
+    print(f"wrote {written} files in {output_dir}")
+    return 0
+
+
+def add_layer_plot_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--wafer-side", type=float, help="Override display wafer side in mm")
+    parser.add_argument("--show-wafers", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--show-cells", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--show-tiles", action=argparse.BooleanOptionalAction, default=True)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -165,16 +275,23 @@ def build_parser() -> argparse.ArgumentParser:
     draw_tiles.add_argument("--layer", type=int, required=True, help="Scintillator layer to draw")
     draw_tiles.set_defaults(func=cmd_draw_tiles)
 
-    draw_layer = sub.add_parser("draw-layer", help="Draw a combined silicon and scintillator layer SVG")
+    draw_layer = sub.add_parser("draw-layer", help="Draw one combined silicon and scintillator layer")
     draw_layer.add_argument("--silicon", help="Silicon flat-file path")
     draw_layer.add_argument("--tiles", help="Scintillator tile-file path")
     draw_layer.add_argument("--layer", type=int, required=True)
     draw_layer.add_argument("--output", required=True)
-    draw_layer.add_argument("--wafer-side", type=float, help="Override display wafer side in mm")
-    draw_layer.add_argument("--show-wafers", action=argparse.BooleanOptionalAction, default=True)
-    draw_layer.add_argument("--show-cells", action=argparse.BooleanOptionalAction, default=False)
-    draw_layer.add_argument("--show-tiles", action=argparse.BooleanOptionalAction, default=True)
+    draw_layer.add_argument("--pdf", action="store_true", help="Also write a PDF next to the SVG")
+    add_layer_plot_options(draw_layer)
     draw_layer.set_defaults(func=cmd_draw_layer)
+
+    export_all = sub.add_parser("export-all-layers", help="Export SVG/PDF files for all layers")
+    export_all.add_argument("--silicon", required=True, help="Silicon flat-file path")
+    export_all.add_argument("--tiles", help="Scintillator tile-file path")
+    export_all.add_argument("--output-dir", required=True)
+    export_all.add_argument("--layers", help="Layer list, for example 1-47 or 1,2,34-47")
+    export_all.add_argument("--format", choices=["svg", "pdf", "both"], default="both")
+    add_layer_plot_options(export_all)
+    export_all.set_defaults(func=cmd_export_all_layers)
 
     return parser
 
