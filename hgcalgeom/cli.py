@@ -12,7 +12,8 @@ from .geometry import Point, Wafer
 from .interface import InMemoryGeometry, default_cell_set
 from .layer_map import guess_wafers_from_records, parse_chris_geometry, read_records
 from .neighbours import NeighbourFinder
-from .plotting import write_wafers_svg
+from .plotting import write_tiles_svg, write_wafers_svg
+from .tile import tiles_for_layer
 
 
 def _parse_int(value: str) -> int:
@@ -75,6 +76,14 @@ def cmd_draw_chris(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_draw_tiles(args: argparse.Namespace) -> int:
+    tiles = tiles_for_layer(args.input, layer=args.layer)
+    title = f"{Path(args.input).name}, layer {args.layer}"
+    write_tiles_svg(tiles, args.output, title=title)
+    print(f"wrote {len(tiles)} tiles to {args.output}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hgcalgeom")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -104,12 +113,18 @@ def build_parser() -> argparse.ArgumentParser:
     draw.add_argument("--wafer-side", type=float, default=1.0)
     draw.set_defaults(func=cmd_draw)
 
-    draw_chris = sub.add_parser("draw-chris-geometry", help="Draw an SVG from Chris's Hex geometry dump")
+    draw_chris = sub.add_parser("draw-chris-geometry", help="Draw an SVG from Chris's silicon geometry dump")
     draw_chris.add_argument("input")
     draw_chris.add_argument("output")
     draw_chris.add_argument("--layer", type=int, help="Only draw this layer")
     draw_chris.add_argument("--wafer-side", type=float, help="Override display wafer side in mm")
     draw_chris.set_defaults(func=cmd_draw_chris)
+
+    draw_tiles = sub.add_parser("draw-tile-layer", help="Draw an SVG from a scintillator tile file")
+    draw_tiles.add_argument("input")
+    draw_tiles.add_argument("output")
+    draw_tiles.add_argument("--layer", type=int, required=True, help="Scintillator layer to draw")
+    draw_tiles.set_defaults(func=cmd_draw_tiles)
 
     return parser
 
