@@ -13,7 +13,7 @@ def test_default_cell_set_rejects_outside_hex_coordinates():
     assert (0, 0) in ld_cells
     assert (15, 15) in ld_cells
     assert (0, 15) not in ld_cells
-    assert (15, 0) in ld_cells
+    assert (15, 0) not in ld_cells
 
 
 def test_in_memory_geometry_wafer_lookup_and_flags():
