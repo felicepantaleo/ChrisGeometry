@@ -1,8 +1,9 @@
 """Silicon cell generation for LD and HD wafers.
 
 This module builds regular grid-cell geometry for full wafers and clips those
-cells to partial-wafer polygons. The partial polygons use the Zoltan dicing-line
-points from Chris Seez's Mac application, transformed to the local wafer frame.
+cells to wafer or partial-wafer polygons. The partial polygons use the Zoltan
+dicing-line points from Chris Seez's Mac application, transformed to the local
+wafer frame.
 """
 
 from __future__ import annotations
@@ -233,11 +234,13 @@ def _transform_local_polygon(points: list[Point], wafer: Wafer) -> list[Point]:
 
 
 def partial_wafer_polygon(wafer: Wafer) -> list[Point]:
-    """Return a drawable polygon for the wafer active partial.
+    """Return the drawable active polygon for a full or partial wafer.
 
     The point ordering follows HXGCellView::setUpPartials. The dicing-line
     points come from HXGActiveWafer and are first converted from hardware to the
     local drawing frame, then rotated/mirrored by the wafer placement index.
+    Full wafers still return the regular wafer boundary, so edge cells are
+    clipped at the wafer boundary instead of being drawn as full hexagons.
     """
 
     corners = _reference_wafer_corners(wafer.side)
@@ -276,7 +279,7 @@ def partial_wafer_polygon(wafer: Wafer) -> list[Point]:
     return _ensure_ccw(_transform_local_polygon(polygon, wafer))
 
 
-def transform_to_wafer(cell: LocalSiliconCell, wafer: Wafer) -> SiliconCell:
+def transform_to_wafer(cell: LocalSiliconCell, wafer: Wafer) -> SiliconCell | None:
     angle = (wafer.placement % 6) * pi / 3.0
     local_center = cell.center
     if wafer.placement > 5 or wafer.seen_from_back:
@@ -296,11 +299,12 @@ def transform_to_wafer(cell: LocalSiliconCell, wafer: Wafer) -> SiliconCell:
         sensor_type=wafer.metadata.get("sensor_type") if isinstance(wafer.metadata.get("sensor_type"), str) else None,
         orientation_rad=angle,
     )
-    if wafer.partial_type == 0:
-        return full_cell
-    clipped = clip_polygon(full_cell.corners(), partial_wafer_polygon(wafer))
+
+    active_polygon = partial_wafer_polygon(wafer)
+    clipped = clip_polygon(full_cell.corners(), active_polygon)
     if len(clipped) < 3 or polygon_area(clipped) <= MIN_POLYGON_AREA_MM2:
-        return full_cell
+        return None
+
     return SiliconCell(
         layer=full_cell.layer,
         wafer_u=full_cell.wafer_u,
@@ -321,12 +325,10 @@ def cells_for_wafer(wafer: Wafer) -> list[SiliconCell]:
     """Return regular or clipped grid cells for one wafer."""
 
     out: list[SiliconCell] = []
-    clip = partial_wafer_polygon(wafer)
     for local_cell in local_cells(is_ld=wafer.is_ld):
         cell = transform_to_wafer(local_cell, wafer)
-        if wafer.partial_type == 0 or polygon_area(cell.corners()) > MIN_POLYGON_AREA_MM2:
-            if wafer.partial_type == 0 or polygon_area(clip_polygon(cell.corners(), clip)) > MIN_POLYGON_AREA_MM2:
-                out.append(cell)
+        if cell is not None:
+            out.append(cell)
     return out
 
 
