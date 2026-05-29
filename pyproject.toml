@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hgcalgeom"
+version = "0.1.0"
+description = "Python tools for HGCAL geometry studies ported from Chris Seez's Hex application"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "Felice Pantaleo" }
+]
+dependencies = []
+
+[project.optional-dependencies]
+plot = ["matplotlib>=3.7"]
+test = ["pytest>=8"]
+
+[project.scripts]
+hgcalgeom = "hgcalgeom.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["hgcalgeom"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
