@@ -7,12 +7,13 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
+from .cells import cells_for_wafers
 from .detid import decode_detid, encode_detid
 from .geometry import Point, Wafer
 from .interface import InMemoryGeometry, default_cell_set
 from .layer_map import guess_wafers_from_records, parse_chris_geometry, read_records
 from .neighbours import NeighbourFinder
-from .plotting import write_tiles_svg, write_wafers_svg
+from .plotting import write_cells_svg, write_combined_layer_svg, write_tiles_svg, write_wafers_svg
 from .tile import tiles_for_layer
 
 
@@ -76,11 +77,42 @@ def cmd_draw_chris(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_draw_cells(args: argparse.Namespace) -> int:
+    wafers = parse_chris_geometry(args.input, layer=args.layer, wafer_side=args.wafer_side)
+    cells = cells_for_wafers(wafers)
+    title = f"{Path(args.input).name}, silicon cells, layer {args.layer}"
+    write_cells_svg(cells, args.output, title=title)
+    print(f"wrote {len(cells)} cells from {len(wafers)} wafers to {args.output}")
+    return 0
+
+
 def cmd_draw_tiles(args: argparse.Namespace) -> int:
     tiles = tiles_for_layer(args.input, layer=args.layer)
     title = f"{Path(args.input).name}, layer {args.layer}"
     write_tiles_svg(tiles, args.output, title=title)
     print(f"wrote {len(tiles)} tiles to {args.output}")
+    return 0
+
+
+def cmd_draw_layer(args: argparse.Namespace) -> int:
+    wafers = parse_chris_geometry(args.silicon, layer=args.layer, wafer_side=args.wafer_side) if args.silicon else []
+    cells = cells_for_wafers(wafers) if args.show_cells else []
+    tiles = tiles_for_layer(args.tiles, layer=args.layer) if args.tiles and args.show_tiles else []
+    title = f"HGCAL layer {args.layer}"
+    write_combined_layer_svg(
+        args.output,
+        wafers=wafers,
+        cells=cells,
+        tiles=tiles,
+        title=title,
+        show_wafers=args.show_wafers,
+        show_cells=args.show_cells,
+        show_tiles=args.show_tiles,
+    )
+    print(
+        f"wrote layer {args.layer}: {len(wafers)} wafers, {len(cells)} cells, "
+        f"{len(tiles)} tiles to {args.output}"
+    )
     return 0
 
 
@@ -120,11 +152,29 @@ def build_parser() -> argparse.ArgumentParser:
     draw_chris.add_argument("--wafer-side", type=float, help="Override display wafer side in mm")
     draw_chris.set_defaults(func=cmd_draw_chris)
 
+    draw_cells = sub.add_parser("draw-silicon-cells", help="Draw regular silicon grid cells from a silicon flat file")
+    draw_cells.add_argument("input")
+    draw_cells.add_argument("output")
+    draw_cells.add_argument("--layer", type=int, required=True, help="Silicon layer to draw")
+    draw_cells.add_argument("--wafer-side", type=float, help="Override display wafer side in mm")
+    draw_cells.set_defaults(func=cmd_draw_cells)
+
     draw_tiles = sub.add_parser("draw-tile-layer", help="Draw an SVG from a scintillator tile file")
     draw_tiles.add_argument("input")
     draw_tiles.add_argument("output")
     draw_tiles.add_argument("--layer", type=int, required=True, help="Scintillator layer to draw")
     draw_tiles.set_defaults(func=cmd_draw_tiles)
+
+    draw_layer = sub.add_parser("draw-layer", help="Draw a combined silicon and scintillator layer SVG")
+    draw_layer.add_argument("--silicon", help="Silicon flat-file path")
+    draw_layer.add_argument("--tiles", help="Scintillator tile-file path")
+    draw_layer.add_argument("--layer", type=int, required=True)
+    draw_layer.add_argument("--output", required=True)
+    draw_layer.add_argument("--wafer-side", type=float, help="Override display wafer side in mm")
+    draw_layer.add_argument("--show-wafers", action=argparse.BooleanOptionalAction, default=True)
+    draw_layer.add_argument("--show-cells", action=argparse.BooleanOptionalAction, default=False)
+    draw_layer.add_argument("--show-tiles", action=argparse.BooleanOptionalAction, default=True)
+    draw_layer.set_defaults(func=cmd_draw_layer)
 
     return parser
 
