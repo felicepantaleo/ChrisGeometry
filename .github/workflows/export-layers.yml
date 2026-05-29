@@ -1,4 +1,4 @@
-name: Export HGCAL layer drawings
+name: Export HGCAL layer PDFs
 
 on:
   push:
@@ -21,18 +21,9 @@ on:
         description: "Layers to export, for example 1-47 or 1,2,34-47"
         required: false
         default: "1-47"
-      format:
-        description: "Output format"
-        required: false
-        default: "both"
-        type: choice
-        options:
-          - svg
-          - pdf
-          - both
 
 jobs:
-  export-layers:
+  export-layer-pdfs:
     runs-on: ubuntu-latest
 
     steps:
@@ -55,7 +46,7 @@ jobs:
         run: |
           python -m pytest
 
-      - name: Export layer SVG/PDF files
+      - name: Export layer PDF files
         run: |
           mkdir -p layers_export
           hgcalgeom export-all-layers \
@@ -63,27 +54,27 @@ jobs:
             --tiles data/tilefile-Nov2023-v3.txt \
             --output-dir layers_export \
             --layers "${{ github.event.inputs.layers || '1-47' }}" \
-            --format "${{ github.event.inputs.format || 'both' }}" \
+            --format pdf \
             --show-wafers \
             --show-cells \
             --show-tiles
 
-      - name: Create compressed artifact bundle
+      - name: Create compressed PDF bundle
         run: |
-          tar -C layers_export -czf hgcal_layers_export.tar.gz .
+          tar -C layers_export -czf hgcal_layer_pdfs.tar.gz .
 
-      - name: Upload individual layer drawings
+      - name: Upload PDF layer drawings
         uses: actions/upload-artifact@v4
         with:
-          name: hgcal-layer-drawings
-          path: layers_export/
+          name: hgcal-layer-pdfs
+          path: layers_export/*.pdf
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload compressed bundle
+      - name: Upload compressed PDF bundle
         uses: actions/upload-artifact@v4
         with:
-          name: hgcal-layer-drawings-tarball
-          path: hgcal_layers_export.tar.gz
+          name: hgcal-layer-pdfs-tarball
+          path: hgcal_layer_pdfs.tar.gz
           if-no-files-found: error
           retention-days: 30
