@@ -1,0 +1,89 @@
+name: Export HGCAL layer drawings
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "hgcalgeom/**"
+      - "data/**"
+      - "pyproject.toml"
+      - ".github/workflows/export-layers.yml"
+  pull_request:
+    paths:
+      - "hgcalgeom/**"
+      - "data/**"
+      - "pyproject.toml"
+      - ".github/workflows/export-layers.yml"
+  workflow_dispatch:
+    inputs:
+      layers:
+        description: "Layers to export, for example 1-47 or 1,2,34-47"
+        required: false
+        default: "1-47"
+      format:
+        description: "Output format"
+        required: false
+        default: "both"
+        type: choice
+        options:
+          - svg
+          - pdf
+          - both
+
+jobs:
+  export-layers:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install package and PDF dependency
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[test,plot]'
+          python -m pip install reportlab
+
+      - name: Run tests
+        run: |
+          python -m pytest
+
+      - name: Export layer SVG/PDF files
+        run: |
+          mkdir -p layers_export
+          hgcalgeom export-all-layers \
+            --silicon data/modmapv16.6_cmssw_flatfile.txt \
+            --tiles data/tilefile-Nov2023-v3.txt \
+            --output-dir layers_export \
+            --layers "${{ github.event.inputs.layers || '1-47' }}" \
+            --format "${{ github.event.inputs.format || 'both' }}" \
+            --show-wafers \
+            --show-cells \
+            --show-tiles
+
+      - name: Create compressed artifact bundle
+        run: |
+          tar -C layers_export -czf hgcal_layers_export.tar.gz .
+
+      - name: Upload individual layer drawings
+        uses: actions/upload-artifact@v4
+        with:
+          name: hgcal-layer-drawings
+          path: layers_export/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload compressed bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: hgcal-layer-drawings-tarball
+          path: hgcal_layers_export.tar.gz
+          if-no-files-found: error
+          retention-days: 30
