@@ -58,6 +58,7 @@ class Tile:
     phi_max_rad: float
     sipm_area_mm2: float
     production: str
+    is_complete_ring: bool = True
 
     def corners(self) -> list[Point]:
         return [
@@ -134,6 +135,7 @@ def tiles_for_layer(path: str | Path, *, layer: int) -> list[Tile]:
             # Keep the parser usable for malformed or transitional files, but
             # do not draw inconsistent ring definitions.
             continue
+        is_complete = all(bits_120)
         delta_phi = 2.0 * pi / tiles_per_ring
         for sector in range(3):
             base = sector * len(bits_120)
@@ -152,6 +154,7 @@ def tiles_for_layer(path: str | Path, *, layer: int) -> list[Tile]:
                         phi_max_rad=(index + 1) * delta_phi,
                         sipm_area_mm2=ring.sipm_area_mm2,
                         production=ring.production,
+                        is_complete_ring=is_complete,
                     )
                 )
     return out
